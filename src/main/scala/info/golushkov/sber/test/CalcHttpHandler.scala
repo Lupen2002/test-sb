@@ -1,5 +1,7 @@
 package info.golushkov.sber.test
 
+import java.time.LocalDateTime
+
 import com.sun.net.httpserver.{HttpExchange, HttpHandler}
 
 import scala.annotation.tailrec
@@ -33,6 +35,7 @@ class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
   }
 
   private def sendMsgToClient(code: Int, msg: String, httpExchange: HttpExchange) = {
+    println(s"${LocalDateTime.now().toString}: response\t[$code] $msg")
     val b = msg.getBytes
     httpExchange.sendResponseHeaders(code, b.length)
     val out = httpExchange.getResponseBody
@@ -42,6 +45,8 @@ class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
   }
 
   override def handle(httpExchange: HttpExchange): Unit = {
+    println(s"${LocalDateTime.now().toString}: request\t[${httpExchange.getRequestMethod}]" +
+      s" ${httpExchange.getRequestURI.toString}")
     val n = getN(httpExchange.getRequestURI.getQuery)
     Future {
       sendMsgToClient(200, fac(n).toString(), httpExchange)

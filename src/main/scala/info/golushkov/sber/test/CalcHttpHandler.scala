@@ -1,11 +1,9 @@
 package info.golushkov.sber.test
 
-import java.time.LocalDateTime
-
 import com.sun.net.httpserver.{HttpExchange, HttpHandler}
 
-import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 /**
@@ -14,28 +12,10 @@ import scala.util.control.NonFatal
  *         26.02.16.
  */
 class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
-  private val nPattern = """.*n=(-?\d+).*""".r
-  private class CalcHttpHandlerException(msg: String) extends Exception(msg)
-
-  @tailrec
-  private def fac(n: BigInt, a: BigInt = 1): BigInt = {
-    if (n > 10000)
-      throw new CalcHttpHandlerException("Ошибка!!! число не должно превышать 10000")
-    if (n < 0)
-      throw new CalcHttpHandlerException("Ошибка!!! факториал может быть вычеслен только от числа больше 0")
-    if (n > 0) fac(n-1, a*n) else a
-  }
-
-
-  private def getN(q: String) = {
-    q match {
-      case nPattern(n) => BigInt(n)
-      case a: Any => throw new CalcHttpHandlerException("Ошибка!!! Не указан параметр N")
-    }
-  }
+  import Factorial._
 
   private def sendMsgToClient(code: Int, msg: String, httpExchange: HttpExchange) = {
-    println(s"${LocalDateTime.now().toString}: response\t[$code] $msg")
+    println(s"response\t[$code] $msg")
     val b = msg.getBytes
     httpExchange.sendResponseHeaders(code, b.length)
     val out = httpExchange.getResponseBody
@@ -45,11 +25,14 @@ class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
   }
 
   override def handle(httpExchange: HttpExchange): Unit = {
-    println(s"${LocalDateTime.now().toString}: request\t[${httpExchange.getRequestMethod}]" +
+    import CalcHttpHandler._
+    implicit def bigInt2String(i: BigInt): String = i.toString()
+
+    println(s"request\t[${httpExchange.getRequestMethod}]" +
       s" ${httpExchange.getRequestURI.toString}")
-    val n = getN(httpExchange.getRequestURI.getQuery)
+    val n = httpExchange.getRequestURI.getQuery.n
     Future {
-      sendMsgToClient(200, fac(n).toString(), httpExchange)
+      sendMsgToClient(200, n!, httpExchange)
     } onFailure {
       case e: CalcHttpHandlerException =>
         sendMsgToClient(400, e.getMessage, httpExchange)
@@ -59,6 +42,22 @@ class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
     }
   }
 }
+
 object CalcHttpHandler {
+  private val nPattern = """.*n=(-?\d+).*""".r
+
   def apply()(implicit ec: ExecutionContext) = new CalcHttpHandler
+
+  def extractN(q: String) = {
+    q match {
+      case nPattern(n) => BigInt(n)
+      case a: Any => throw new CalcHttpHandlerException("Ошибка!!! Не указан параметр N")
+    }
+  }
+  
+  implicit class ExtractionNFromString(s: String) {
+    def n = extractN(s)
+  }
 }
+
+class CalcHttpHandlerException(msg: String) extends Exception(msg)

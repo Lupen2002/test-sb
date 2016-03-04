@@ -12,7 +12,6 @@ import scala.util.control.NonFatal
  *         26.02.16.
  */
 class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
-  import Factorial._
 
   private def sendMsgToClient(code: Int, msg: String, httpExchange: HttpExchange) = {
     println(s"response\t[$code] $msg")
@@ -26,6 +25,7 @@ class CalcHttpHandler(implicit val ec: ExecutionContext) extends HttpHandler {
 
   override def handle(httpExchange: HttpExchange): Unit = {
     import CalcHttpHandler._
+    import info.golushkov.sber.test.Factorial._
     implicit def bigInt2String(i: BigInt): String = i.toString()
 
     println(s"request\t[${httpExchange.getRequestMethod}]" +
